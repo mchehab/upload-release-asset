@@ -9,6 +9,7 @@ const run = require('../src/upload-release-asset');
 
 /* eslint-disable no-undef */
 describe('Upload Release Asset', () => {
+  let getReleaseByTag;
   let uploadReleaseAsset;
   let content;
 
@@ -16,6 +17,12 @@ describe('Upload Release Asset', () => {
     uploadReleaseAsset = jest.fn().mockReturnValueOnce({
       data: {
         browser_download_url: 'browserDownloadUrl'
+      }
+    });
+
+    getReleaseByTag = jest.fn().mockReturnValueOnce({
+      data: {
+        upload_url: 'upload_url'
       }
     });
 
@@ -33,8 +40,11 @@ describe('Upload Release Asset', () => {
       repo: 'repo'
     };
 
+    context.ref = 'refs/tags/release_tag';
+
     const github = {
       repos: {
+        getReleaseByTag,
         uploadReleaseAsset
       }
     };
@@ -42,10 +52,49 @@ describe('Upload Release Asset', () => {
     GitHub.mockImplementation(() => github);
   });
 
-  test('Upload release asset endpoint is called', async () => {
+  test('Upload release asset endpoint is called via upload_url', async () => {
     core.getInput = jest
       .fn()
       .mockReturnValueOnce('upload_url')
+      .mockReturnValueOnce(null)
+      .mockReturnValueOnce('asset_path')
+      .mockReturnValueOnce('asset_name')
+      .mockReturnValueOnce('asset_content_type');
+
+    await run();
+
+    expect(uploadReleaseAsset).toHaveBeenCalledWith({
+      url: 'upload_url',
+      headers: { 'content-type': 'asset_content_type', 'content-length': 527 },
+      name: 'asset_name',
+      file: content
+    });
+  });
+
+  test('Upload release asset endpoint is called via release_tag', async () => {
+    core.getInput = jest
+      .fn()
+      .mockReturnValueOnce(null)
+      .mockReturnValueOnce('release_tag')
+      .mockReturnValueOnce('asset_path')
+      .mockReturnValueOnce('asset_name')
+      .mockReturnValueOnce('asset_content_type');
+
+    await run();
+
+    expect(uploadReleaseAsset).toHaveBeenCalledWith({
+      url: 'upload_url',
+      headers: { 'content-type': 'asset_content_type', 'content-length': 527 },
+      name: 'asset_name',
+      file: content
+    });
+  });
+
+  test('Upload release asset endpoint is called via default release_tag', async () => {
+    core.getInput = jest
+      .fn()
+      .mockReturnValueOnce(null)
+      .mockReturnValueOnce(null)
       .mockReturnValueOnce('asset_path')
       .mockReturnValueOnce('asset_name')
       .mockReturnValueOnce('asset_content_type');

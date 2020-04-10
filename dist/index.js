@@ -25300,8 +25300,35 @@ run();
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 const core = __nccwpck_require__(2186);
-const { GitHub } = __nccwpck_require__(5438);
+const { GitHub, context } = __nccwpck_require__(5438);
 const fs = __nccwpck_require__(5747);
+
+async function getUploadUrlByReleaseTag(github, releaseTag) {
+  // Get owner and repo from context of payload that triggered the action
+  const { owner, repo } = context.repo;
+
+  // Get the default tag name from the triggered action when not given
+  const tagName = releaseTag || context.ref;
+
+  // This removes the 'refs/tags' portion of the string, i.e. from 'refs/tags/xxx' to 'xxx'
+  const tag = tagName.replace('refs/tags/', '');
+
+  // Get a release from the tag name
+  // API Documentation: https://developer.github.com/v3/repos/releases/#create-a-release
+  // Octokit Documentation: https://octokit.github.io/rest.js/#octokit-routes-repos-create-release
+  const response = await github.repos.getReleaseByTag({
+    owner,
+    repo,
+    tag
+  });
+
+  // Get the upload URL for the created Release from the response
+  const {
+    data: { upload_url: uploadUrl }
+  } = response;
+
+  return uploadUrl;
+}
 
 async function run() {
   try {
@@ -25309,7 +25336,14 @@ async function run() {
     const github = new GitHub(process.env.GITHUB_TOKEN);
 
     // Get the inputs from the workflow file: https://github.com/actions/toolkit/tree/master/packages/core#inputsoutputs
-    const uploadUrl = core.getInput('upload_url', { required: true });
+    const uploadUrlVar = core.getInput('upload_url', { required: false });
+    const releaseTag = core.getInput('release_tag', { required: false });
+
+    const uploadUrl = uploadUrlVar || (await getUploadUrlByReleaseTag(github, releaseTag));
+    if (!uploadUrl) {
+      throw new Error('UploadUrl was not supplied and was failed getting by releaseTag');
+    }
+
     const assetPath = core.getInput('asset_path', { required: true });
     const assetName = core.getInput('asset_name', { required: true });
     const assetContentType = core.getInput('asset_content_type', { required: true });

@@ -4,7 +4,10 @@ author: 'GitHub'
 inputs:
   upload_url:
     description: 'The URL for uploading assets to the release'
-    required: true
+    required: false
+  release_tag:
+    description: 'The tag of release for uploading assets'
+    required: false
   asset_path:
     description: 'The path to the asset you want to upload'
     required: true
