@@ -28,6 +28,12 @@ describe('Upload Release Asset', () => {
       }
     });
 
+    getRelease = jest.fn().mockReturnValueOnce({
+      data: {
+        upload_url: 'upload_url'
+      }
+    });
+
     fs.statSync = jest.fn().mockReturnValueOnce({
       size: 527
     });
@@ -45,6 +51,7 @@ describe('Upload Release Asset', () => {
     const github = {
       repos: {
         getReleaseByTag,
+        getRelease,
         uploadReleaseAsset
       }
     };
@@ -109,6 +116,55 @@ describe('Upload Release Asset', () => {
     });
   });
 
+  test('Not a release with a release tag', async () => {
+    core.getInput = jest
+      .fn()
+      .mockReturnValueOnce(null)
+      .mockReturnValueOnce('release_tag')
+      .mockReturnValueOnce('asset_path')
+      .mockReturnValueOnce('asset_name')
+      .mockReturnValueOnce('asset_content_type');
+
+    context.ref = null;
+
+    await run();
+
+    expect(uploadReleaseAsset).toHaveBeenCalledWith({
+      url: 'upload_url',
+      headers: { 'content-type': 'asset_content_type', 'content-length': 527 },
+      name: 'asset_name',
+      file: content
+    });
+  });
+
+  test('Use the latest release', async () => {
+    core.getInput = jest
+      .fn()
+      .mockReturnValueOnce(null)
+      .mockReturnValueOnce(null)
+      .mockReturnValueOnce('asset_path')
+      .mockReturnValueOnce('asset_name')
+      .mockReturnValueOnce('asset_content_type');
+
+    context.ref = null;
+
+    getReleaseByTag.mockRestore();
+    getReleaseByTag.mockReturnValueOnce({
+      data: {
+        upload_url: null
+      }
+    });
+
+    await run();
+
+    expect(uploadReleaseAsset).toHaveBeenCalledWith({
+      url: 'upload_url',
+      headers: { 'content-type': 'asset_content_type', 'content-length': 527 },
+      name: 'asset_name',
+      file: content
+    });
+  });
+
   test('Output is set', async () => {
     core.getInput = jest
       .fn()
@@ -131,6 +187,8 @@ describe('Upload Release Asset', () => {
       .mockReturnValueOnce(null)
       .mockReturnValueOnce(null);
 
+    context.ref = null;
+
     getReleaseByTag.mockRestore();
     getReleaseByTag.mockReturnValueOnce({
       data: {
@@ -138,9 +196,16 @@ describe('Upload Release Asset', () => {
       }
     });
 
+    getRelease.mockRestore();
+    getRelease.mockReturnValueOnce({
+      data: {
+        upload_url: null
+      }
+    });
+
     await run();
 
-    expect(getReleaseByTag).toHaveBeenCalled();
+    expect(getRelease).toHaveBeenCalled();
     expect(core.setFailed).toHaveBeenCalledWith('Unable to get the upload URL');
   });
 

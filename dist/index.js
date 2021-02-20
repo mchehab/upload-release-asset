@@ -25327,10 +25327,37 @@ async function getUploadUrlByReleaseTag(github, releaseTag) {
     data: { upload_url: uploadUrl }
   } = response;
 
+  console.log(`Upload URL for tag ${tagName}: ${uploadUrl}`);
+
+  return uploadUrl;
+}
+
+async function getUploadUrlByLatestRelease(github) {
+  // Get owner and repo from context of payload that triggered the action
+  const { owner, repo } = context.repo;
+
+  // Get the latest release
+  // API Documentation: https://developer.github.com/v3/repos/releases/#create-a-release
+  // Octokit Documentation: https://octokit.github.io/rest.js/#octokit-routes-repos-create-release
+  const { release: { id: releaseId } = {} } = context.payload;
+
+  const {
+    data: { upload_url: url }
+  } = await github.repos.getRelease({
+    owner,
+    repo,
+    release_id: releaseId
+  });
+
+  const uploadUrl = url;
+
+  console.log(`Upload URL for the latest release: ${uploadUrl}`);
+
   return uploadUrl;
 }
 
 async function run() {
+  let uploadUrl;
   try {
     // Get authenticated GitHub client (Ocktokit): https://github.com/actions/toolkit/tree/master/packages/github#usage
     const github = new GitHub(process.env.GITHUB_TOKEN);
@@ -25339,7 +25366,19 @@ async function run() {
     const uploadUrlVar = core.getInput('upload_url', { required: false });
     const releaseTag = core.getInput('release_tag', { required: false });
 
-    const uploadUrl = uploadUrlVar || (await getUploadUrlByReleaseTag(github, releaseTag));
+    console.log(`upload-release with upload_url: '${uploadUrlVar}' and release tag: '${releaseTag}'`);
+
+    if (uploadUrlVar) {
+      console.log(`using upload url ${uploadUrlVar}`);
+      uploadUrl = uploadUrlVar;
+    } else if (releaseTag || context.ref) {
+      console.log(`using release tag ${releaseTag}`);
+      uploadUrl = await getUploadUrlByReleaseTag(github, releaseTag);
+    } else {
+      console.log(`using latest tag`);
+      uploadUrl = await getUploadUrlByLatestRelease(github);
+    }
+
     if (!uploadUrl) {
       throw new Error('Unable to get the upload URL');
     }
@@ -25358,7 +25397,7 @@ async function run() {
     // API Documentation: https://developer.github.com/v3/repos/releases/#upload-a-release-asset
     // Octokit Documentation: https://octokit.github.io/rest.js/#octokit-routes-repos-upload-release-asset
 
-    console.log(`uploading ${assetName} to ${uploadUrl}`);
+    console.log(`uploading ${assetName} to ${uploadUrlVar}`);
 
     const uploadAssetResponse = await github.repos.uploadReleaseAsset({
       url: uploadUrl,
