@@ -28,32 +28,44 @@ async function getUploadUrlByReleaseTag(github, tagName) {
 
     return uploadUrl;
   } catch (error) {
+    /* istanbul ignore next */
+    console.log(`warning: ${error.message}`);
+    /* istanbul ignore next */
     return null;
   }
 }
 
 async function getUploadUrlByLatestRelease(github) {
-  // Get owner and repo from context of payload that triggered the action
   const { owner, repo } = context.repo;
 
-  // Get the latest release
-  // API Documentation: https://developer.github.com/v3/repos/releases/#create-a-release
-  // Octokit Documentation: https://octokit.github.io/rest.js/#octokit-routes-repos-create-release
-  const { release: { id: releaseId } = {} } = context.payload;
+  // Get owner and repo from context of payload that triggered the action
+  // We can't use get the latest release, as it doesn't do what's expected
 
-  const {
-    data: { upload_url: url }
-  } = await github.repos.getRelease({
-    owner,
-    repo,
-    release_id: releaseId
-  });
+  try {
+    // Load release list from GitHub
+    const releaseList = await github.repos.listReleases({
+      repo: repo,
+      owner: owner,
+      per_page: 50,
+      page: 1
+    });
 
-  const uploadUrl = url;
+    // Search release list for latest required release
+    console.log(`Found ${releaseList.data.length} releases`);
 
-  console.log(`Upload URL for the latest release: ${uploadUrl}`);
+    if (!releaseList.data.length) return null;
 
-  return uploadUrl;
+    const tag = releaseList.data[0].tag_name;
+
+    console.log(`Using release tag ${tag}`);
+
+    return getUploadUrlByReleaseTag(github, tag);
+  } catch (error) {
+    /* istanbul ignore next */
+    console.log(`warning: ${error.message}`);
+    /* istanbul ignore next */
+    return null;
+  }
 }
 
 async function run() {
@@ -106,7 +118,7 @@ async function run() {
       url: uploadUrl,
       headers,
       name: assetName,
-      file: fs.readFileSync(assetPath)
+      data: fs.readFileSync(assetPath)
     });
 
     // Get the browser_download_url for the uploaded release asset from the response
