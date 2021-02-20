@@ -9,7 +9,8 @@
     "jest": true
   },
   "rules": {
-    "prettier/prettier": [
+     'no-console': 'off',
+     "prettier/prettier": [
       "error",
       {
         "trailingComma": "none",

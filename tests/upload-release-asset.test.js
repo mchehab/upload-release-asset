@@ -23,6 +23,8 @@ describe('Upload Release Asset', () => {
       size: 527
     });
 
+    console.log = jest.fn();
+
     content = Buffer.from('test content');
     fs.readFileSync = jest.fn().mockReturnValueOnce(content);
 

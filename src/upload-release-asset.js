@@ -22,6 +22,9 @@ async function run() {
     // Upload a release asset
     // API Documentation: https://developer.github.com/v3/repos/releases/#upload-a-release-asset
     // Octokit Documentation: https://octokit.github.io/rest.js/#octokit-routes-repos-upload-release-asset
+
+    console.log(`uploading ${assetName} to ${uploadUrl}`);
+
     const uploadAssetResponse = await github.repos.uploadReleaseAsset({
       url: uploadUrl,
       headers,
@@ -35,6 +38,7 @@ async function run() {
     } = uploadAssetResponse;
 
     // Set the output variable for use by other actions: https://github.com/actions/toolkit/tree/master/packages/core#inputsoutputs
+    console.log(`download URL ${browserDownloadUrl}`);
     core.setOutput('browser_download_url', browserDownloadUrl);
   } catch (error) {
     core.setFailed(error.message);
