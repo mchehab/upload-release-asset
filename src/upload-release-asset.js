@@ -2,33 +2,34 @@ const core = require('@actions/core');
 const { GitHub, context } = require('@actions/github');
 const fs = require('fs');
 
-async function getUploadUrlByReleaseTag(github, releaseTag) {
+async function getUploadUrlByReleaseTag(github, tagName) {
   // Get owner and repo from context of payload that triggered the action
   const { owner, repo } = context.repo;
-
-  // Get the default tag name from the triggered action when not given
-  const tagName = releaseTag || context.ref;
 
   // This removes the 'refs/tags' portion of the string, i.e. from 'refs/tags/xxx' to 'xxx'
   const tag = tagName.replace('refs/tags/', '');
 
-  // Get a release from the tag name
-  // API Documentation: https://developer.github.com/v3/repos/releases/#create-a-release
-  // Octokit Documentation: https://octokit.github.io/rest.js/#octokit-routes-repos-create-release
-  const response = await github.repos.getReleaseByTag({
-    owner,
-    repo,
-    tag
-  });
+  try {
+    // Get a release from the tag name
+    // API Documentation: https://developer.github.com/v3/repos/releases/#create-a-release
+    // Octokit Documentation: https://octokit.github.io/rest.js/#octokit-routes-repos-create-release
+    const response = await github.repos.getReleaseByTag({
+      owner,
+      repo,
+      tag
+    });
 
-  // Get the upload URL for the created Release from the response
-  const {
-    data: { upload_url: uploadUrl }
-  } = response;
+    // Get the upload URL for the created Release from the response
+    const {
+      data: { upload_url: uploadUrl }
+    } = response;
 
-  console.log(`Upload URL for tag ${tagName}: ${uploadUrl}`);
+    console.log(`Upload URL for tag ${tagName}: ${uploadUrl}`);
 
-  return uploadUrl;
+    return uploadUrl;
+  } catch (error) {
+    return null;
+  }
 }
 
 async function getUploadUrlByLatestRelease(github) {
@@ -71,9 +72,12 @@ async function run() {
       console.log(`using upload url ${uploadUrlVar}`);
       uploadUrl = uploadUrlVar;
     } else if (releaseTag || context.ref) {
-      console.log(`using release tag ${releaseTag}`);
-      uploadUrl = await getUploadUrlByReleaseTag(github, releaseTag);
-    } else {
+      const tagName = releaseTag || context.ref;
+      console.log(`using release tag ${tagName} if possible`);
+      uploadUrl = await getUploadUrlByReleaseTag(github, tagName);
+    }
+
+    if (!uploadUrl) {
       console.log(`using latest tag`);
       uploadUrl = await getUploadUrlByLatestRelease(github);
     }
