@@ -7,6 +7,8 @@ const { GitHub, context } = require('@actions/github');
 const fs = require('fs');
 const run = require('../src/upload-release-asset');
 
+console.log = jest.fn();
+
 /* eslint-disable no-undef */
 describe('Upload Release Asset', () => {
   let getReleaseByTag;
@@ -29,8 +31,6 @@ describe('Upload Release Asset', () => {
     fs.statSync = jest.fn().mockReturnValueOnce({
       size: 527
     });
-
-    console.log = jest.fn();
 
     content = Buffer.from('test content');
     fs.readFileSync = jest.fn().mockReturnValueOnce(content);
@@ -113,6 +113,7 @@ describe('Upload Release Asset', () => {
     core.getInput = jest
       .fn()
       .mockReturnValueOnce('upload_url')
+      .mockReturnValueOnce(null)
       .mockReturnValueOnce('asset_path')
       .mockReturnValueOnce('asset_name')
       .mockReturnValueOnce('asset_content_type');
@@ -124,9 +125,30 @@ describe('Upload Release Asset', () => {
     expect(core.setOutput).toHaveBeenNthCalledWith(1, 'browser_download_url', 'browserDownloadUrl');
   });
 
-  test('Action fails elegantly', async () => {
+  test('Unable to get upload URL', async () => {
     core.getInput = jest
       .fn()
+      .mockReturnValueOnce(null)
+      .mockReturnValueOnce(null);
+
+    getReleaseByTag.mockRestore();
+    getReleaseByTag.mockReturnValueOnce({
+      data: {
+        upload_url: null
+      }
+    });
+
+    await run();
+
+    expect(getReleaseByTag).toHaveBeenCalled();
+    expect(core.setFailed).toHaveBeenCalledWith('Unable to get the upload URL');
+  });
+
+  test('Upload fails elegantly', async () => {
+    core.getInput = jest
+      .fn()
+      .mockReturnValueOnce(null)
+      .mockReturnValueOnce(null)
       .mockReturnValueOnce('upload_url')
       .mockReturnValueOnce('asset_path')
       .mockReturnValueOnce('asset_name')
@@ -138,7 +160,6 @@ describe('Upload Release Asset', () => {
     });
 
     core.setOutput = jest.fn();
-
     core.setFailed = jest.fn();
 
     await run();

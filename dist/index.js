@@ -25341,7 +25341,7 @@ async function run() {
 
     const uploadUrl = uploadUrlVar || (await getUploadUrlByReleaseTag(github, releaseTag));
     if (!uploadUrl) {
-      throw new Error('UploadUrl was not supplied and was failed getting by releaseTag');
+      throw new Error('Unable to get the upload URL');
     }
 
     const assetPath = core.getInput('asset_path', { required: true });
